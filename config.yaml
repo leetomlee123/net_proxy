@@ -1,0 +1,52 @@
+redis:
+  host: "158.180.92.85:6379"
+  password: "zx222lx"
+  db: 1
+
+alist:
+  host: "144.24.79.146:5244"
+  localHost: "144.24.79.146"
+  username: "admin"
+  password: "d859263218a2ccde72b0eb4ef9f9fec98c5fe1030765cb95816b85b76df195ab"
+  proxy: ""
+
+mysql:
+  ip: "158.180.80.239"
+  port: "3306"
+  name: "root"
+  pwd: "Lix@520mysql!"
+
+email:
+  from: leetomlee123@gmail.com
+  code: pccdixqzfvaojwyo
+  host: smtp.gmail.com
+  port: 587
+
+bot:
+  token:
+    - "7281272651:AAGaNo2Vq6vmoIg1V3xowy2mE7s7Hq7CSI4"
+    - "7301532302:AAGfm6fOkl7N0-mBrSWWonVBogF7nw1Hrws"
+  channelName: "@apple_files_store"
+  pass: ""
+  mode: "p"
+  baseUrl: "http://localhost:1234"
+
+
+couchdb:
+  url: 158.180.92.85:5984
+  name: lix
+  pwd: lix@1qaz
+
+server:
+  port: 1234
+  vip: false
+  cache: true
+  work: false
+  api: false
+  apiHost: 202.63.172.66:5862
+  air: https://v2ray.leetomlee123.online/b64.txt
+  proxy:
+    - "127.0.0.1:403"
+    - "127.0.0.1:404"
+    - "127.0.0.1:405"
+    - "127.0.0.1:406"
