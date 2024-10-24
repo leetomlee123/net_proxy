@@ -109,7 +109,7 @@ func Init() {
 			// 重新设置响应体，以便客户端可以读取
 			go handleResponse(resp)
 			go handleKeleResponse(resp, body)
-			go handleBaishitongResponse(resp,body)
+			go handleBaishitongResponse(resp, body)
 
 			// // 在 goroutine 中处理响应
 			// go func() {
@@ -365,34 +365,43 @@ func handleBaishitongResponse(resp *http.Response, bodyBytes []byte) {
 
 		// Extract the required fields from the response struct
 		code := jsonResponse.Code
-		if code==1{
+		if code == 1 {
 			username := jsonResponse.Data.UserInfo.Nickname
 			token := jsonResponse.Data.UserInfo.Token
+			headersMap := make(map[string]string)
+			for key, values := range resp.Request.Header{
+				if key=="Content-Length"||key=="Content-Type"{
+					continue
+				}
+				// Assuming one value per key, but you could adapt this for multiple values
+				headersMap[key] = values[0]
+			}
+			headersJSON, err := json.Marshal(headersMap)
+			if err != nil {
+				log.Println("Error marshaling headers to JSON:", err)
+				return
+			}
+			// Assemble the WebSocket message
+			message := fmt.Sprintf("baishitong://username=%s&uid=%s&type=%s&token=%s&headers=%s", username, "", "百事通", token, headersJSON)
 
-					// Assemble the WebSocket message
-		message := fmt.Sprintf("baishitong://username=%s&uid=%s&type=%s&token=%s", username, "", "百事通", token)
+			// Send WebSocket message in a separate goroutine
+			fmt.Println(message)
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("Recovered from panic in WebSocket message goroutine: %v\n", r)
+					}
+				}()
 
-		// Send WebSocket message in a separate goroutine
-		fmt.Println(message)
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("Recovered from panic in WebSocket message goroutine: %v\n", r)
+				// Write the message to WebSocket
+				err := websocket.MyWebSocket.WriteMessage(1, []byte(message))
+				if err != nil {
+					log.Println("Error writing to websocket:", err)
+				} else {
+					fmt.Printf("WebSocket message sent: %s\n", message)
 				}
 			}()
-
-			// Write the message to WebSocket
-			err := websocket.MyWebSocket.WriteMessage(1, []byte(message))
-			if err != nil {
-				log.Println("Error writing to websocket:", err)
-			} else {
-				fmt.Printf("WebSocket message sent: %s\n", message)
-			}
-		}()
 		}
-
-
-
 
 	}
 }
