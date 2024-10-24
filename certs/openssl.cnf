@@ -10,28 +10,28 @@ basicConstraints = critical,CA:true
 distinguished_name	= req_distinguished_name
 [ req_distinguished_name ]
 countryName			= Country Name (2 letter code)
-countryName_default		= IL
+countryName_default		= CN
 countryName_min			= 2
 countryName_max			= 2
 
 stateOrProvinceName		= State or Province Name (full name)
-stateOrProvinceName_default	= Center
+stateOrProvinceName_default	= SHANGHAI
 
 localityName			= Locality Name (eg, city)
-localityName_default		= Lod
+localityName_default		= SHANGHAI
 
 0.organizationName		= Organization Name (eg, company)
-0.organizationName_default	= kele_auto
+0.organizationName_default	= keleAutoReader
 
 # we can do this but it is not needed normally :-)
 #1.organizationName		= Second Organization Name (eg, company)
 #1.organizationName_default	= World Wide Web Pty Ltd
 
 organizationalUnitName		= Organizational Unit Name (eg, section)
-organizationalUnitName_default	= kele_auto
+organizationalUnitName_default	= keleAutoReader
 
 commonName			= Common Name (e.g. server FQDN or YOUR name)
-commonName_default		= share.colors.nyc.mn
+commonName_default		= leetomlee123.github.io
 commonName_max			= 64
 
 emailAddress			= Email Address
