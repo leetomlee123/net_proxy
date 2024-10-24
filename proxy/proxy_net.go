@@ -107,8 +107,9 @@ func Init() {
 			}
 
 			// 重新设置响应体，以便客户端可以读取
-			go handleHuyuegongxiangResponse(resp)
-			go handleResponse(resp, body)
+			go handleResponse(resp)
+			go handleKeleResponse(resp, body)
+			go handleBaishitongResponse(resp,body)
 
 			// // 在 goroutine 中处理响应
 			// go func() {
@@ -316,8 +317,87 @@ type Response struct {
 		Tips string `json:"tips"`
 	} `json:"data"`
 }
+type UserInfo struct {
+	Nickname   string `json:"nickname"`
+	Mobile     string `json:"mobile"`
+	Avatar     string `json:"avatar"`
+	FID        int64  `json:"fid"`
+	Token      string `json:"token"`
+	UserID     int64  `json:"user_id"`
+	CreateTime int64  `json:"createtime"`
+	ExpireTime int64  `json:"expiretime"`
+	ExpiresIn  int64  `json:"expires_in"`
+}
 
-func handleResponse(resp *http.Response, bodyBytes []byte) {
+// Data 代表 JSON 响应中的数据部分
+type Data struct {
+	UserInfo UserInfo `json:"userinfo"`
+}
+
+// Response 代表完整的 JSON 响应结构
+type BaishitongResponse struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+	Time string `json:"time"`
+	Data Data   `json:"data"`
+}
+
+func handleBaishitongResponse(resp *http.Response, bodyBytes []byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("handle baishitong login panic: %v\n", r)
+		}
+	}()
+	// Filter out OPTIONS requests
+	if resp.Request.Method == http.MethodOptions {
+		log.Println("OPTIONS request - no further processing.")
+		return
+	}
+
+	// Check if the URL contains "tuijian"
+	if strings.Contains(resp.Request.URL.String(), "/v1/user/login") {
+		var jsonResponse BaishitongResponse
+		err := json.Unmarshal(bodyBytes, &jsonResponse)
+		if err != nil {
+			log.Println("Error parsing JSON response:", err)
+			return
+		}
+
+		// Extract the required fields from the response struct
+		code := jsonResponse.Code
+		if code==1{
+			username := jsonResponse.Data.UserInfo.Nickname
+			token := jsonResponse.Data.UserInfo.Token
+
+					// Assemble the WebSocket message
+		message := fmt.Sprintf("baishitong://username=%s&uid=%s&type=%s&token=%s", username, "", "百事通", token)
+
+		// Send WebSocket message in a separate goroutine
+		fmt.Println(message)
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("Recovered from panic in WebSocket message goroutine: %v\n", r)
+				}
+			}()
+
+			// Write the message to WebSocket
+			err := websocket.MyWebSocket.WriteMessage(1, []byte(message))
+			if err != nil {
+				log.Println("Error writing to websocket:", err)
+			} else {
+				fmt.Printf("WebSocket message sent: %s\n", message)
+			}
+		}()
+		}
+
+
+
+
+	}
+}
+
+func handleKeleResponse(resp *http.Response, bodyBytes []byte) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("handle kele tuijian panic: %v\n", r)
@@ -342,7 +422,7 @@ func handleResponse(resp *http.Response, bodyBytes []byte) {
 		userData := jsonResponse.Data.User
 		username := userData.Username
 		uid := userData.UID
-		score := userData.Score
+		// score := userData.Score
 
 		// Extract the token from the headers
 		token := ""
@@ -361,7 +441,7 @@ func handleResponse(resp *http.Response, bodyBytes []byte) {
 		}
 
 		// Assemble the WebSocket message
-		message := fmt.Sprintf("kele://username=%s&uid=%s&score=%s&token=%s", username, uid, score, token)
+		message := fmt.Sprintf("kele://username=%s&uid=%s&type=%s&token=%s", username, uid, "可乐", token)
 
 		// Send WebSocket message in a separate goroutine
 		fmt.Println(message)
@@ -382,7 +462,7 @@ func handleResponse(resp *http.Response, bodyBytes []byte) {
 		}()
 	}
 }
-func handleHuyuegongxiangResponse(resp *http.Response) {
+func handleResponse(resp *http.Response) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("handle tianxia  panic: %v\n", r)
