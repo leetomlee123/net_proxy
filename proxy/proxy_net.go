@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -110,6 +111,7 @@ func Init() {
 			go handleResponse(resp)
 			go handleKeleResponse(resp, body)
 			go handleBaishitongResponse(resp, body)
+			go handleYoumiResponse(resp, body)
 
 			// // 在 goroutine 中处理响应
 			// go func() {
@@ -341,7 +343,107 @@ type BaishitongResponse struct {
 	Time string `json:"time"`
 	Data Data   `json:"data"`
 }
+type YoumiResponse struct {
+	Code    int       `json:"code"`
+	Data    YouMiData `json:"data"`
+	Message string    `json:"message"`
+	Success bool      `json:"success"`
+}
 
+type YouMiData struct {
+	FFB      string `json:"ffb"`
+	Code     string `json:"code"`
+	SJ       string `json:"sj"`
+	StartNum string `json:"startNum"`
+	EndNum   string `json:"endNum"`
+	URL      string `json:"url"`
+}
+
+func handleYoumiResponse(resp *http.Response, bodyBytes []byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("handle youmi login panic: %v\n", r)
+		}
+	}()
+	// Filter out OPTIONS requests
+	if resp.Request.Method == http.MethodOptions {
+		log.Println("OPTIONS request - no further processing.")
+		return
+	}
+
+	// Check if the URL contains "tuijian"
+	urlStr:=resp.Request.URL.String()
+	if strings.Contains(urlStr, "/ttz/uaction/getArticleListkkk") {
+		var jsonResponse YoumiResponse
+		err := json.Unmarshal(bodyBytes, &jsonResponse)
+		if err != nil {
+			log.Println("Error parsing JSON response:", err)
+			return
+		}
+
+		// Extract the required fields from the response struct
+		code := jsonResponse.Code
+		if code == 200 &&jsonResponse.Data.Code=="200"{
+			
+			parsedURL, err := url.Parse(urlStr)
+			if err != nil {
+				log.Println("Error parsing URL:", err)
+				return
+			}
+
+			// Retrieve specific GET parameters
+			username := parsedURL.Query().Get("str")
+			token:= parsedURL.Query().Get("token")
+
+			headersMap := make(map[string]string)
+			for key, values := range resp.Request.Header {
+				if key == "Content-Length" || key == "Content-Type" {
+					continue
+				}
+				// Assuming one value per key, but you could adapt this for multiple values
+				headersMap[key] = values[0]
+			}
+
+			headersJSON, err := json.Marshal(headersMap)
+			if err != nil {
+				log.Println("Error marshaling headers to JSON:", err)
+				return
+			}
+			paramMap := make(map[string]string)
+			paramMap["startNumber"]=jsonResponse.Data.StartNum
+			paramMap["keys"]=parsedURL.Query().Get("keys")
+
+			paramJSON, err := json.Marshal(paramMap)
+			if err != nil {
+				log.Println("Error marshaling params to JSON:", err)
+				return
+			}
+
+
+			// Assemble the WebSocket message
+			message := fmt.Sprintf("youmi://username=%s&params=%s&type=%s&token=%s&headers=%s", username, paramJSON, "有米", token, headersJSON)
+
+			// Send WebSocket message in a separate goroutine
+			fmt.Println(message)
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("Recovered from panic in WebSocket message goroutine: %v\n", r)
+					}
+				}()
+
+				// Write the message to WebSocket
+				err := websocket.MyWebSocket.WriteMessage(1, []byte(message))
+				if err != nil {
+					log.Println("Error writing to websocket:", err)
+				} else {
+					fmt.Printf("WebSocket message sent: %s\n", message)
+				}
+			}()
+		}
+
+	}
+}
 func handleBaishitongResponse(resp *http.Response, bodyBytes []byte) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -369,8 +471,8 @@ func handleBaishitongResponse(resp *http.Response, bodyBytes []byte) {
 			username := jsonResponse.Data.UserInfo.Nickname
 			token := jsonResponse.Data.UserInfo.Token
 			headersMap := make(map[string]string)
-			for key, values := range resp.Request.Header{
-				if key=="Content-Length"||key=="Content-Type"{
+			for key, values := range resp.Request.Header {
+				if key == "Content-Length" || key == "Content-Type" {
 					continue
 				}
 				// Assuming one value per key, but you could adapt this for multiple values
