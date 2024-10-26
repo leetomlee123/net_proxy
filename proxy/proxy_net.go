@@ -298,24 +298,11 @@ type Response struct {
 	Data struct {
 		User struct {
 			Username        string `json:"username"`
-			UpUID           string `json:"upuid"`
+
 			UID             string `json:"uid"`
-			RegTime         string `json:"regtime"`
-			Score           string `json:"score"`
-			RebateCountShow bool   `json:"rebate_count_show"`
-			RebateCount     string `json:"rebate_count"`
-			NewReadCount    string `json:"new_read_count"`
+
 		} `json:"user"`
-		ReadCfg struct {
-			CheckScore int     `json:"check_score"`
-			UserScore  float64 `json:"user_score"`
-		} `json:"readCfg"`
-		InfoView struct {
-			Num    string  `json:"num"`
-			Score  float64 `json:"score"`
-			Rest   int     `json:"rest"`
-			Status int     `json:"status"`
-		} `json:"infoView"`
+
 		Tips string `json:"tips"`
 	} `json:"data"`
 }
