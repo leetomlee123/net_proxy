@@ -103,25 +103,38 @@ func Init() {
 		func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				// 处理错误
+				fmt.Println("Error reading response body:", err)
 				return resp
 			}
 
-			// 重新设置响应体，以便客户端可以读取
-			go handleResponse(resp)
-			go handleKeleResponse(resp, body)
-			go handleBaishitongResponse(resp, body)
-			go handleYoumiResponse(resp, body)
-
-			// // 在 goroutine 中处理响应
-			// go func() {
-			// 	// 调用 tianxia 函数，处理响应
-			// 	tianxia(resp)
-			// }()
+			// Reset the response body
 			resp.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-			fmt.Println("before return resp")
+
+			// Launch handlers in goroutines
+			go func() {
+				handleResponse(resp)
+
+			}()
+
+			go func() {
+				handleKeleResponse(resp, body)
+
+			}()
+
+			go func() {
+				handleBaishitongResponse(resp, body)
+
+			}()
+
+			go func() {
+				handleYoumiResponse(resp, body)
+
+			}()
+
+			fmt.Println("Before returning response")
 			return resp
 		})
+
 	// Enable verbose logging for debugging
 	proxy.Verbose = true
 
@@ -181,126 +194,13 @@ func readFile(filePath string) ([]byte, error) {
 	return data, nil
 }
 
-// Print or process the response body content
-// fmt.Printf("Response Body: %s\n", string(bodyBytes))
-
-// Retrieve the stored value from request phase
-// if strings.HasPrefix(resp.Request.URL.String(), "https://m.zzyi4cf7z8.cn:443/tuijian") {
-
-// 	// for name, values := range resp.Request.Header {
-// 	// 	for _, value := range values {
-// 	// 		fmt.Printf("Request Header: %s: %s\n", name, value)
-// 	// 		if value == "Udtauth12" {
-// 	// 			token = value
-// 	// 		}
-// 	// 	}
-// 	// }
-
-// 	var jsonResponse map[string]interface{}
-// 	err = json.Unmarshal(bodyBytes, &jsonResponse)
-// 	if err != nil {
-// 		log.Println("Error parsing JSON response:", err)
-// 		return resp
-// 	}
-// 	if code, ok := jsonResponse["code"].(float64); ok && code != 0 {
-// 		modifiedResponse := map[string]interface{}{
-// 			"code": 0,
-// 			"data": map[string]interface{}{
-// 				"user": map[string]interface{}{
-// 					"username":          "无无有歌",
-// 					"upuid":             "0",
-// 					"uid":               "3799193",
-// 					"regtime":           "2024-09-19 09:54:32",
-// 					"score":             "10000.0000",
-// 					"rebate_count_show": true,
-// 					"rebate_count":      "0",
-// 					"new_read_count":    "0",
-// 				},
-// 				"readCfg": map[string]interface{}{
-// 					"check_score": 0,
-// 					"user_score":  1.1,
-// 				},
-// 				"infoView": map[string]interface{}{
-// 					"num":    "1",
-// 					"score":  0,
-// 					"rest":   0,
-// 					"status": 1,
-// 				},
-// 				"tips": "通知：收徒奖励高，平均1元/徒弟，月收徒奖励万元",
-// 			},
-// 		}
-
-// 		// Convert the modified response to JSON
-// 		modifiedResponseBytes, err := json.Marshal(modifiedResponse)
-// 		if err != nil {
-// 			log.Println("Error marshaling modified response:", err)
-// 			return resp
-// 		}
-
-// 		// Replace the original response body with the modified content
-// 		resp.Body = ioutil.NopCloser(bytes.NewBuffer(modifiedResponseBytes))
-// 		resp.ContentLength = int64(len(modifiedResponseBytes))
-// 		resp.Header.Set("Content-Type", "application/json")
-
-// 		return resp
-// 	}
-
-// 	// Extract the required fields
-// 	userData, ok := jsonResponse["data"].(map[string]interface{})["user"].(map[string]interface{})
-// 	if !ok {
-// 		log.Println("Error extracting user data from response")
-// 		return resp
-// 	}
-
-// 	username := userData["username"].(string)
-// 	uid := userData["uid"].(string)
-// 	score := userData["score"].(string)
-// 	token := ""
-// 	if resp != nil && resp.Request != nil {
-// 		// Access the request headers
-// 		headers := resp.Request.Header
-
-// 		// Check if the Udtauth12 header exists
-// 		if values, ok := headers["Udtauth12"]; ok {
-// 			// Iterate through the header values (in case there are multiple values)
-// 			for _, value := range values {
-// 				fmt.Printf("Udtauth12 header value: %s\n", value)
-// 				token = value // Store the Udtauth12 value in token variable or use as needed
-// 			}
-// 		} else {
-// 			// Udtauth12 header not found
-// 			fmt.Println("Udtauth12 header not found in the request")
-// 		}
-// 	}
-// 	// Assemble and send WebSocket message after getting the response
-// 	message := fmt.Sprintf("kele://username=%s&uid=%s&score=%s&token=%s", username, uid, score, token)
-
-// 	fmt.Println(message)
-
-// 	go func() {
-// 		defer func() {
-// 			if r := recover(); r != nil {
-// 				log.Printf("Recovered from panic in WebSocket message goroutine: %v\n", r)
-// 			}
-// 		}()
-
-// 		err := websocket.MyWebSocket.WriteMessage(1, []byte(message))
-// 		if err != nil {
-// 			log.Println("Error writing to websocket:", err)
-// 		} else {
-// 			fmt.Printf("WebSocket message sent: %s\n", message)
-// 		}
-
-//		}()
-//	}
 type Response struct {
 	Code int `json:"code"`
 	Data struct {
 		User struct {
-			Username        string `json:"username"`
+			Username string `json:"username"`
 
-			UID             string `json:"uid"`
-
+			UID string `json:"uid"`
 		} `json:"user"`
 
 		Tips string `json:"tips"`
@@ -359,7 +259,7 @@ func handleYoumiResponse(resp *http.Response, bodyBytes []byte) {
 	}
 
 	// Check if the URL contains "tuijian"
-	urlStr:=resp.Request.URL.String()
+	urlStr := resp.Request.URL.String()
 	if strings.Contains(urlStr, "/ttz/uaction/getArticleListkkk") {
 		var jsonResponse YoumiResponse
 		err := json.Unmarshal(bodyBytes, &jsonResponse)
@@ -370,8 +270,8 @@ func handleYoumiResponse(resp *http.Response, bodyBytes []byte) {
 
 		// Extract the required fields from the response struct
 		code := jsonResponse.Code
-		if code == 200 &&jsonResponse.Data.Code=="200"{
-			
+		if code == 200 && jsonResponse.Data.Code == "200" {
+
 			parsedURL, err := url.Parse(urlStr)
 			if err != nil {
 				log.Println("Error parsing URL:", err)
@@ -380,7 +280,7 @@ func handleYoumiResponse(resp *http.Response, bodyBytes []byte) {
 
 			// Retrieve specific GET parameters
 			username := parsedURL.Query().Get("str")
-			token:= parsedURL.Query().Get("token")
+			token := parsedURL.Query().Get("token")
 
 			headersMap := make(map[string]string)
 			for key, values := range resp.Request.Header {
@@ -397,15 +297,14 @@ func handleYoumiResponse(resp *http.Response, bodyBytes []byte) {
 				return
 			}
 			paramMap := make(map[string]string)
-			paramMap["startNumber"]=jsonResponse.Data.StartNum
-			paramMap["keys"]=parsedURL.Query().Get("keys")
+			paramMap["startNumber"] = jsonResponse.Data.StartNum
+			paramMap["keys"] = parsedURL.Query().Get("keys")
 
 			paramJSON, err := json.Marshal(paramMap)
 			if err != nil {
 				log.Println("Error marshaling params to JSON:", err)
 				return
 			}
-
 
 			// Assemble the WebSocket message
 			message := fmt.Sprintf("youmi://username=%s&params=%s&type=%s&token=%s&headers=%s", username, paramJSON, "有米", token, headersJSON)
