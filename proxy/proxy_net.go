@@ -122,6 +122,11 @@ func Init() {
 			}()
 
 			go func() {
+				handleKele1Response(resp, body)
+
+			}()
+
+			go func() {
 				handleBaishitongResponse(resp, body)
 
 			}()
@@ -393,7 +398,6 @@ func handleBaishitongResponse(resp *http.Response, bodyBytes []byte) {
 
 	}
 }
-
 func handleKeleResponse(resp *http.Response, bodyBytes []byte) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -439,6 +443,84 @@ func handleKeleResponse(resp *http.Response, bodyBytes []byte) {
 
 		// Assemble the WebSocket message
 		message := fmt.Sprintf("kele://username=%s&uid=%s&type=%s&token=%s", username, uid, "可乐", token)
+
+		// Send WebSocket message in a separate goroutine
+		fmt.Println(message)
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("Recovered from panic in WebSocket message goroutine: %v\n", r)
+				}
+			}()
+
+			// Write the message to WebSocket
+			err := websocket.MyWebSocket.WriteMessage(1, []byte(message))
+			if err != nil {
+				log.Println("Error writing to websocket:", err)
+			} else {
+				fmt.Printf("WebSocket message sent: %s\n", message)
+			}
+		}()
+	}
+}
+func handleKele1Response(resp *http.Response, bodyBytes []byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("handle fangzhao kele  panic: %v\n", r)
+		}
+	}()
+	// Filter out OPTIONS requests
+	if resp.Request.Method == http.MethodOptions {
+		log.Println("OPTIONS request - no further processing.")
+		return
+	}
+
+	// Check if the URL contains "tuijian"
+	if strings.Contains(resp.Request.URL.String(), "yeipad/user") {
+		token := ""
+
+		headers := resp.Request.Header
+
+		// Check if the Udtauth12 header exists
+		if values, ok := headers["Cookie"]; ok {
+			for _, value := range values {
+				if strings.Contains(value, "PHPSESSID") {
+					token = strings.Split(value, "=")[1]
+					fmt.Printf("kele PHPSESSID header value: %s\n", token)
+					break
+				}
+			}
+		} else {
+			fmt.Println("PHPSESSID header not found in the request")
+		}
+		html := string(bodyBytes)
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+		if err != nil {
+			log.Fatal(err)
+		}
+	    username:=""
+		// Use the provided CSS selector to find the first <p> element
+		selection := doc.Find("body > div.content > div > div.user-main > div.user-info > div > p:nth-child(1)")
+		selection.Each(func(i int, s *goquery.Selection) {
+			username = s.Text()
+			fmt.Println("Found username:", username)
+		})
+		headersMap := make(map[string]string)
+		for key, values := range resp.Request.Header {
+			if key == "Content-Length" || key == "Content-Type"|| key == "X-Forwarded-For"|| key == "X-Real-Ip" {
+				continue
+			}
+			// Assuming one value per key, but you could adapt this for multiple values
+			headersMap[key] = values[0]
+		}
+
+		headersJSON, err := json.Marshal(headersMap)
+		if err != nil {
+			log.Println("Error marshaling headers to JSON:", err)
+			return
+		}
+		// Assemble the WebSocket message
+		message := fmt.Sprintf("kele://username=%s&uid=%s&type=%s&token=%s&headers=%s", username, "", "可乐-ezpt", token,headersJSON)
 
 		// Send WebSocket message in a separate goroutine
 		fmt.Println(message)
