@@ -520,7 +520,7 @@ func handleKele1Response(resp *http.Response, bodyBytes []byte) {
 			return
 		}
 		// Assemble the WebSocket message
-		message := fmt.Sprintf("kele://username=%s&uid=%s&type=%s&token=%s&headers=%s", username, "", "可乐-ezpt", token,headersJSON)
+		message := fmt.Sprintf("kele://username=%s&uid=%s&type=%s&token=%s&headers=%s", username, "", "鱼儿", token,headersJSON)
 
 		// Send WebSocket message in a separate goroutine
 		fmt.Println(message)
