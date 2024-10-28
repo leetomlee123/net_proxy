@@ -474,7 +474,7 @@ func handleYuerResponse(resp *http.Response, bodyBytes []byte) {
 		log.Println("OPTIONS request - no further processing.")
 		return
 	}
-
+	
 	// Check if the URL contains "tuijian"
 	if strings.Contains(resp.Request.URL.String(), "yeipad/user") {
 		token := ""
