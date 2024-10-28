@@ -122,7 +122,7 @@ func Init() {
 			}()
 
 			go func() {
-				handleKele1Response(resp, body)
+				handleYuerResponse(resp, body)
 
 			}()
 
@@ -463,7 +463,7 @@ func handleKeleResponse(resp *http.Response, bodyBytes []byte) {
 		}()
 	}
 }
-func handleKele1Response(resp *http.Response, bodyBytes []byte) {
+func handleYuerResponse(resp *http.Response, bodyBytes []byte) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("handle fangzhao kele  panic: %v\n", r)
