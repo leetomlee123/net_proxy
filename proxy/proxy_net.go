@@ -136,7 +136,7 @@ func Init() {
 
 			}()
 
-			fmt.Println("Before returning response")
+			fmt.Println("Before returning response "+string(body))
 			return resp
 		})
 
@@ -577,7 +577,7 @@ func handleResponse(resp *http.Response) {
 					})
 
 					// Construct the target URL with the extracted token and account
-					baseURL := "http://116.204.64.93:1234/admin/wxCode"
+					baseURL := "https://api.nicevoice.nyc.mn/admin/wxCode"
 					fullURL := fmt.Sprintf("%s?code=%s&tag=%s", baseURL, token, account)
 
 					// Set up basic authentication
