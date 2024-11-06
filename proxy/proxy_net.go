@@ -117,6 +117,11 @@ func Init() {
 			}()
 
 			go func() {
+				handleXiaoyueyueResponse(resp, body)
+
+			}()
+
+			go func() {
 				handleKeleResponse(resp, body)
 
 			}()
@@ -136,7 +141,7 @@ func Init() {
 
 			}()
 
-			fmt.Println("Before returning response "+string(body))
+			fmt.Println("Before returning response " + string(body))
 			return resp
 		})
 
@@ -146,6 +151,130 @@ func Init() {
 	// Start the proxy server on port 4568
 	log.Println("Proxy server started on :4568")
 	log.Fatal(http.ListenAndServe(":4568", proxy))
+}
+
+func handleXiaoyueyueResponse(resp *http.Response, bodyBytes []byte) {
+
+	// http://1730875136te.7-6-7.cn/?inviteid=0
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("handle xiaoyueyue panic: %v\n", r)
+		}
+	}()
+	// Filter out OPTIONS requests
+	if resp.Request.Method == http.MethodOptions {
+		log.Println("OPTIONS request - no further processing.")
+		return
+	}
+	headers := resp.Request.Header
+	// Check if the URL contains "tuijian"
+	urlStr := resp.Request.URL.String()
+	if strings.Contains(urlStr, "/yunonline/v1/gold") {
+		var token string
+		if values, ok := headers["Cookie"]; ok {
+			for _, value := range values {
+				if strings.Contains(value, "ysmuid") {
+					// 找到 ysmuid 的值
+					parts := strings.Split(value, "ysmuid=")
+					if len(parts) > 1 {
+						token = strings.Split(parts[1], ";")[0] // 取 ysmuid 值
+						fmt.Printf("xiaoyueyue token header value: %s\n", token)
+					}
+					break
+				}
+			}
+		} else {
+			fmt.Println("Cookie header not found in the request")
+		}
+
+		// 提取 Referer 和 User-Agent
+		var referer, ua string
+		if refererValues, ok := headers["Referer"]; ok && len(refererValues) > 0 {
+			referer = refererValues[0]
+		} else {
+			fmt.Println("Referer header not found")
+		}
+
+		if uaValues, ok := headers["User-Agent"]; ok && len(uaValues) > 0 {
+			ua = uaValues[0]
+		} else {
+			fmt.Println("User-Agent header not found")
+		}
+		username := getId(referer, token, ua)
+		fmt.Println("Generated username:", username)
+		headersMap := make(map[string]string)
+		for key, values := range resp.Request.Header {
+			if key == "Content-Length" || key == "Content-Type" {
+				continue
+			}
+			// Assuming one value per key, but you could adapt this for multiple values
+			headersMap[key] = values[0]
+		}
+
+		headersJSON, err := json.Marshal(headersMap)
+		if err != nil {
+			log.Println("Error marshaling headers to JSON:", err)
+			return
+		}
+		// Assemble the WebSocket message
+		message := fmt.Sprintf("youmi://username=%s&params=%s&type=%s&token=%s&headers=%s", username, "", "小阅阅", token, headersJSON)
+
+		// Send WebSocket message in a separate goroutine
+		fmt.Println(message)
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("Recovered from panic in WebSocket message goroutine: %v\n", r)
+				}
+			}()
+
+			// Write the message to WebSocket
+			err := websocket.MyWebSocket.WriteMessage(1, []byte(message))
+			if err != nil {
+				log.Println("Error writing to websocket:", err)
+			} else {
+				fmt.Printf("WebSocket message sent: %s\n", message)
+			}
+		}()
+	}
+}
+
+func getId(url, token, ua string) string {
+	// 目标 URL
+
+	// 发起请求
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fmt.Println("Error creating request:", err)
+		return ""
+	}
+
+	// 设置请求头，包括 User-Agent 和 Cookie
+	req.Header.Set("User-Agent", ua)
+	req.Header.Set("Cookie", "ysmuid="+token)
+
+	// 发起请求并获取响应
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error sending request:", err)
+		return ""
+	}
+	defer resp.Body.Close()
+
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		fmt.Println("Error loading document:", err)
+		return ""
+	}
+	id := ""
+
+	// 提取包含ID的文本
+	doc.Find(".msg_con p").Each(func(i int, s *goquery.Selection) {
+		text := s.Text()
+		id = strings.ReplaceAll(text, "我的id:", "")
+	})
+	return id
 }
 
 func GetUserAccount(token string) string {
@@ -474,7 +603,7 @@ func handleYuerResponse(resp *http.Response, bodyBytes []byte) {
 		log.Println("OPTIONS request - no further processing.")
 		return
 	}
-	
+
 	// Check if the URL contains "tuijian"
 	if strings.Contains(resp.Request.URL.String(), "yeipad/user") {
 		token := ""
@@ -498,7 +627,7 @@ func handleYuerResponse(resp *http.Response, bodyBytes []byte) {
 		if err != nil {
 			log.Fatal(err)
 		}
-	    username:=""
+		username := ""
 		// Use the provided CSS selector to find the first <p> element
 		selection := doc.Find("body > div.content > div > div.user-main > div.user-info > div > p:nth-child(1)")
 		selection.Each(func(i int, s *goquery.Selection) {
@@ -507,7 +636,7 @@ func handleYuerResponse(resp *http.Response, bodyBytes []byte) {
 		})
 		headersMap := make(map[string]string)
 		for key, values := range resp.Request.Header {
-			if key == "Content-Length" || key == "Content-Type"|| key == "X-Forwarded-For"|| key == "X-Real-Ip" {
+			if key == "Content-Length" || key == "Content-Type" || key == "X-Forwarded-For" || key == "X-Real-Ip" {
 				continue
 			}
 			// Assuming one value per key, but you could adapt this for multiple values
@@ -520,7 +649,7 @@ func handleYuerResponse(resp *http.Response, bodyBytes []byte) {
 			return
 		}
 		// Assemble the WebSocket message
-		message := fmt.Sprintf("kele://username=%s&uid=%s&type=%s&token=%s&headers=%s", username, "", "鱼儿", token,headersJSON)
+		message := fmt.Sprintf("kele://username=%s&uid=%s&type=%s&token=%s&headers=%s", username, "", "鱼儿", token, headersJSON)
 
 		// Send WebSocket message in a separate goroutine
 		fmt.Println(message)
@@ -560,7 +689,7 @@ func handleResponse(resp *http.Response) {
 					for _, vv := range split {
 						// Trim any leading or trailing whitespace in each cookie
 						vv = strings.TrimSpace(vv)
-						
+
 						// Check if this part contains "PHPSESSID="
 						if strings.HasPrefix(vv, "PHPSESSID=") {
 							// Replace only "PHPSESSID=" in this specific cookie
@@ -569,9 +698,8 @@ func handleResponse(resp *http.Response) {
 						}
 					}
 					fmt.Printf("PHPSESSID Token: %s\n", token)
-					
-					account := ""
 
+					account := ""
 
 					// Parse the HTML response body to extract the account
 					doc, err := goquery.NewDocumentFromReader(resp.Body)
