@@ -555,10 +555,23 @@ func handleResponse(resp *http.Response) {
 				fmt.Printf("Request Header: %s: %s\n", name, value)
 				// Look for the PHPSESSID token
 				if strings.Contains(value, "PHPSESSID=") {
-					token := strings.ReplaceAll(value, "PHPSESSID=", "")
+					split := strings.Split(value, ";")
+					token := ""
+					for _, vv := range split {
+						// Trim any leading or trailing whitespace in each cookie
+						vv = strings.TrimSpace(vv)
+						
+						// Check if this part contains "PHPSESSID="
+						if strings.HasPrefix(vv, "PHPSESSID=") {
+							// Replace only "PHPSESSID=" in this specific cookie
+							token = strings.ReplaceAll(vv, "PHPSESSID=", "")
+							break // Stop looping once we find the PHPSESSID token
+						}
+					}
+					fmt.Printf("PHPSESSID Token: %s\n", token)
+					
 					account := ""
 
-					fmt.Println("get token:", token)
 
 					// Parse the HTML response body to extract the account
 					doc, err := goquery.NewDocumentFromReader(resp.Body)
