@@ -53,9 +53,16 @@ func Init() {
 	// Intercept responses and print response details
 	proxy.OnResponse().DoFunc(
 		func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
-			if resp.Body == nil {
-				fmt.Println("Response body is nil")
-				return resp
+
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Println("Recovered from panic:", r)
+				}
+			}()
+
+			if resp == nil || resp.Body == nil {
+				fmt.Println("Response or response body is nil")
+				return nil // or return a default response or error as needed
 			}
 			
 			body, err := io.ReadAll(resp.Body)
