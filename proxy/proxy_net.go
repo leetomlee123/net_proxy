@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -48,60 +49,16 @@ func Init() {
 	// Enable HTTPS interception with MITM
 	proxy.OnRequest().HandleConnect(goproxy.AlwaysMitm)
 
-	// Intercept HTTP and HTTPS requests and print request details
-	proxy.OnRequest().DoFunc(
-		func(r *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
-			fmt.Printf("Request Method: %s, URL: %s\n", r.Method, r.URL.String())
 
-			clientIP := r.RemoteAddr
-			fmt.Println(clientIP)
-
-			// Add or append to the X-Forwarded-For header to include the client's real IP
-			// If X-Forwarded-For already exists, append the new client IP
-			if prior := r.Header.Get("X-Forwarded-For"); prior != "" {
-				r.Header.Set("X-Forwarded-For", prior+", "+clientIP)
-			} else {
-				r.Header.Set("X-Forwarded-For", clientIP)
-			}
-
-			// Optionally, you can also set X-Real-IP
-			r.Header.Set("X-Real-IP", clientIP)
-
-			// if r.URL.Host == "m.jkvugn.bar" {
-			// 	r.URL.Scheme = "https"
-			// 	r.URL.Host = "m.zzyi4cf7z8.cn:443"
-
-			// 	fmt.Printf("Rewritten URL: %s\n", r.URL.String())
-			// }
-			// var udtauth12Value string
-
-			// // Check if URL starts with specific prefix
-			// if strings.HasPrefix(r.URL.String(), "https://m.zzyi4cf7z8.cn:443/tuijian") {
-			for name, values := range r.Header {
-				for _, value := range values {
-					fmt.Printf("Request Header: %s: %s\n", name, value)
-				}
-			}
-			// }
-			// // Attach the stored value to context for use in the response phase
-			// ctx.UserData = udtauth12Value
-
-			// WebSocket notifications based on headers
-
-			if r.Body != nil {
-				bodyBytes, err := ioutil.ReadAll(r.Body)
-				if err == nil {
-					r.Body = ioutil.NopCloser(bytes.NewReader(bodyBytes))
-					fmt.Printf("Request Body: %s\n", string(bodyBytes))
-				}
-			}
-
-			return r, nil
-		})
 	// Intercept responses and print response details
 	proxy.OnResponse().DoFunc(
 		func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
-			body, err := ioutil.ReadAll(resp.Body)
+			if resp.Body == nil {
+				fmt.Println("Response body is nil")
+				return resp
+			}
+			
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				fmt.Println("Error reading response body:", err)
 				return resp
