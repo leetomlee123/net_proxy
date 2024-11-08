@@ -166,6 +166,7 @@ func handleXiaoyueyueResponse(resp *http.Response, bodyBytes []byte) {
 		log.Println("OPTIONS request - no further processing.")
 		return
 	}
+
 	headers := resp.Request.Header
 	// Check if the URL contains "tuijian"
 	urlStr := resp.Request.URL.String()
@@ -210,6 +211,9 @@ func handleXiaoyueyueResponse(resp *http.Response, bodyBytes []byte) {
 			// Assuming one value per key, but you could adapt this for multiple values
 			headersMap[key] = values[0]
 		}
+		host := fmt.Sprintf("%s://%s", resp.Request.URL.Scheme, resp.Request.URL.Host)
+		log.Printf("Request Host: %s\n", host)
+		headersMap["hostX"] = host
 
 		headersJSON, err := json.Marshal(headersMap)
 		if err != nil {
