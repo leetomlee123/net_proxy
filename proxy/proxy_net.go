@@ -49,7 +49,6 @@ func Init() {
 	// Enable HTTPS interception with MITM
 	proxy.OnRequest().HandleConnect(goproxy.AlwaysMitm)
 
-
 	// Intercept responses and print response details
 	proxy.OnResponse().DoFunc(
 		func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
@@ -64,7 +63,7 @@ func Init() {
 				fmt.Println("Response or response body is nil")
 				return nil // or return a default response or error as needed
 			}
-			
+
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				fmt.Println("Error reading response body:", err)
@@ -188,7 +187,6 @@ func handleXiaoyueyueResponse(resp *http.Response, bodyBytes []byte) {
 		unionid := parsedURL.Query().Get("unionid")
 		headersMap["unionid"] = unionid
 
-
 		headersJSON, err := json.Marshal(headersMap)
 		if err != nil {
 			log.Println("Error marshaling headers to JSON:", err)
@@ -239,7 +237,6 @@ func getId(url, token, ua string) string {
 		return ""
 	}
 	defer resp.Body.Close()
-	
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
@@ -548,7 +545,9 @@ func handleKeleResponse(resp *http.Response, bodyBytes []byte) {
 				fmt.Println("Udtauth12 header not found in the request")
 			}
 		}
-
+		if username == "" {
+			return
+		}
 		// Assemble the WebSocket message
 		message := fmt.Sprintf("kele://username=%s&uid=%s&type=%s&token=%s", username, uid, "可乐", token)
 
