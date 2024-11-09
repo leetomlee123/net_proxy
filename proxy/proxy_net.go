@@ -178,6 +178,16 @@ func handleXiaoyueyueResponse(resp *http.Response, bodyBytes []byte) {
 		host := fmt.Sprintf("%s://%s", resp.Request.URL.Scheme, resp.Request.URL.Host)
 		log.Printf("Request Host: %s\n", host)
 		headersMap["hostX"] = host
+		parsedURL, err := url.Parse(urlStr)
+		if err != nil {
+			log.Println("Error parsing URL:", err)
+			return
+		}
+
+		// Retrieve specific GET parameters
+		unionid := parsedURL.Query().Get("unionid")
+		headersMap["unionid"] = unionid
+
 
 		headersJSON, err := json.Marshal(headersMap)
 		if err != nil {
@@ -185,7 +195,7 @@ func handleXiaoyueyueResponse(resp *http.Response, bodyBytes []byte) {
 			return
 		}
 		// Assemble the WebSocket message
-		message := fmt.Sprintf("youmi://username=%s&params=%s&type=%s&token=%s&headers=%s", username, "", "小阅阅", token, headersJSON)
+		message := fmt.Sprintf("xiaoyueyue://username=%s&params=%s&type=%s&token=%s&headers=%s", username, "", "小阅阅", token, headersJSON)
 
 		// Send WebSocket message in a separate goroutine
 		fmt.Println(message)
@@ -229,6 +239,7 @@ func getId(url, token, ua string) string {
 		return ""
 	}
 	defer resp.Body.Close()
+	
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
