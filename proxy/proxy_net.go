@@ -10,8 +10,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"tidy/websocket"
@@ -21,27 +19,27 @@ import (
 )
 
 func Init() {
-	dir, err := os.Getwd()
-	if err != nil {
-		log.Fatalf("Failed to get working directory: %v", err)
-	}
-	fmt.Println("Current working directory:", dir)
+	// dir, err := os.Getwd()
+	// if err != nil {
+	// 	log.Fatalf("Failed to get working directory: %v", err)
+	// }
+	// fmt.Println("Current working directory:", dir)
 
-	// 拼接证书文件路径
-	certFile := filepath.Join("", "certs", "ca.crt")
-	certKeyFile := filepath.Join("", "certs", "ca.key.pem")
+	// // 拼接证书文件路径
+	// certFile := filepath.Join("", "certs", "ca.crt")
+	// certKeyFile := filepath.Join("", "certs", "ca.key.pem")
 
-	// 读取证书文件
-	caCert, err := readFile(certFile)
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
+	// // 读取证书文件
+	// caCert, err := readFile(certFile)
+	// if err != nil {
+	// 	log.Fatalf(err.Error())
+	// }
 
-	// 读取证书密钥文件
-	caKey, err := readFile(certKeyFile)
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
+	// // 读取证书密钥文件
+	// caKey, err := readFile(certKeyFile)
+	// if err != nil {
+	// 	log.Fatalf(err.Error())
+	// }
 
 	setCA([]byte(caCert), []byte(caKey))
 	proxy := goproxy.NewProxyHttpServer()
@@ -367,10 +365,22 @@ func handleYoumiResponse(resp *http.Response, bodyBytes []byte) {
 		log.Println("OPTIONS request - no further processing.")
 		return
 	}
-
+	// http://hpage.ttianzhuan.cn/ttz/yn/userSignin?userShowId=499388
 	// Check if the URL contains "tuijian"
 	urlStr := resp.Request.URL.String()
-	if strings.Contains(urlStr, "/ttz/uaction/getArticleListkkk") {
+
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		log.Println("Error parsing URL:", err)
+		return
+	}
+
+	// Retrieve specific GET parameters
+
+	if strings.Contains(urlStr, "ttz/yn/queryUserCode") {
+		userShowId := parsedURL.Query().Get("userShowId")
+		http.NewRequest("GET", "http://hpage.ttianzhuan.cn/ttz/yn/userSignin?userShowId="+userShowId, nil)
+	} else if strings.Contains(urlStr, "/ttz/uaction/getArticleListkkk") {
 		var jsonResponse YoumiResponse
 		err := json.Unmarshal(bodyBytes, &jsonResponse)
 		if err != nil {
@@ -382,13 +392,6 @@ func handleYoumiResponse(resp *http.Response, bodyBytes []byte) {
 		code := jsonResponse.Code
 		if code == 200 && jsonResponse.Data.Code == "200" {
 
-			parsedURL, err := url.Parse(urlStr)
-			if err != nil {
-				log.Println("Error parsing URL:", err)
-				return
-			}
-
-			// Retrieve specific GET parameters
 			username := parsedURL.Query().Get("str")
 			token := parsedURL.Query().Get("token")
 
