@@ -10,37 +10,20 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"tidy/websocket"
 
 	"github.com/PuerkitoBio/goquery"
 	"gopkg.in/elazarl/goproxy.v1"
+	"flag"
 )
 
 func Init() {
-	// dir, err := os.Getwd()
-	// if err != nil {
-	// 	log.Fatalf("Failed to get working directory: %v", err)
-	// }
-	// fmt.Println("Current working directory:", dir)
 
-	// // 拼接证书文件路径
-	// certFile := filepath.Join("", "certs", "ca.crt")
-	// certKeyFile := filepath.Join("", "certs", "ca.key.pem")
-
-	// // 读取证书文件
-	// caCert, err := readFile(certFile)
-	// if err != nil {
-	// 	log.Fatalf(err.Error())
-	// }
-
-	// // 读取证书密钥文件
-	// caKey, err := readFile(certKeyFile)
-	// if err != nil {
-	// 	log.Fatalf(err.Error())
-	// }
-
+	port := flag.String("p", "4568", "Port for the proxy server") // -p flag with default value "4568"
+	flag.Parse() // Parse the flags
 	setCA([]byte(caCert), []byte(caKey))
 	proxy := goproxy.NewProxyHttpServer()
 
@@ -110,8 +93,11 @@ func Init() {
 	proxy.Verbose = true
 
 	// Start the proxy server on port 4568
-	log.Println("Proxy server started on :4568")
-	log.Fatal(http.ListenAndServe(":4568", proxy))
+	fmt.Printf("Starting GoProxy on :%s\n", *port)
+	if err := http.ListenAndServe(":"+*port, proxy); err != nil {
+		fmt.Println("Error starting proxy server:", err)
+		os.Exit(1)
+	}
 }
 
 func handleXiaoyueyueResponse(resp *http.Response, bodyBytes []byte) {
@@ -733,3 +719,25 @@ func handleResponse(resp *http.Response) {
 		}
 	}
 }
+
+	// dir, err := os.Getwd()
+	// if err != nil {
+	// 	log.Fatalf("Failed to get working directory: %v", err)
+	// }
+	// fmt.Println("Current working directory:", dir)
+
+	// // 拼接证书文件路径
+	// certFile := filepath.Join("", "certs", "ca.crt")
+	// certKeyFile := filepath.Join("", "certs", "ca.key.pem")
+
+	// // 读取证书文件
+	// caCert, err := readFile(certFile)
+	// if err != nil {
+	// 	log.Fatalf(err.Error())
+	// }
+
+	// // 读取证书密钥文件
+	// caKey, err := readFile(certKeyFile)
+	// if err != nil {
+	// 	log.Fatalf(err.Error())
+	// }
