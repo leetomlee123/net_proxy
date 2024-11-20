@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strings"
 	"tidy/websocket"
+	"time"
 
 	"flag"
 
@@ -22,8 +23,18 @@ import (
 	"gopkg.in/elazarl/goproxy.v1"
 )
 
-func fetchTargetDomains(url string) ([]string, error) {
-	resp, err := http.Get(url)
+func fetchTargetDomains(baseURL string) ([]string, error) {
+	// 构造带时间戳的 URL
+	parsedURL, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid base URL: %v", err)
+	}
+	query := parsedURL.Query()
+	query.Set("g", fmt.Sprintf("%d", time.Now().Unix())) // 添加时间戳参数
+	parsedURL.RawQuery = query.Encode()
+
+	// 发起请求
+	resp, err := http.Get(parsedURL.String())
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +59,6 @@ func fetchTargetDomains(url string) ([]string, error) {
 
 	return domains, nil
 }
-
 func Init() {
 	targetDomainsURL := "https://alist.colors.nyc.mn/d/certs/domain.txt"
 	targetDomains, err := fetchTargetDomains(targetDomainsURL)
