@@ -15,22 +15,48 @@ import (
 	"strings"
 	"tidy/websocket"
 
+
+	"flag"
+
 	"github.com/PuerkitoBio/goquery"
 	"gopkg.in/elazarl/goproxy.v1"
-	"flag"
 )
+
 
 func Init() {
 
 	port := flag.String("p", "4568", "Port for the proxy server") // -p flag with default value "4568"
-	flag.Parse() // Parse the flags
+	flag.Parse()                                                  // Parse the flags
 	setCA([]byte(caCert), []byte(caKey))
-	proxy := goproxy.NewProxyHttpServer()
 
+	proxy := goproxy.NewProxyHttpServer()
+	// com.example.wx_reader
 	// Enable HTTPS interception with MITM
+
+	// myHandler := &MyReqHandler{}
+	// proxy.OnRequest().Do(myHandler)
+
 	proxy.OnRequest().HandleConnect(goproxy.AlwaysMitm)
 
-	// Intercept responses and print response details
+	// targetPaths := []string{
+	// 	"yunonline/v1/gold",
+	// 	"ttz/yn/queryUserCode",
+	// 	"ttz/uaction/getArticleListkkk",
+	// 	"v1/user/login",
+	// 	"tuijian",
+	// 	"yeipad/user",
+	// }
+	// var patterns []string
+	// for _, path := range targetPaths {
+	// 	patterns = append(patterns, regexp.QuoteMeta(path))
+	// }
+
+	// // 生成只要包含目标路径即可匹配的正则
+	// combinedPattern := "(" + strings.Join(patterns, "|") + ")"
+	// re := regexp.MustCompile(combinedPattern)
+
+	// proxy.OnRequest(goproxy.UrlMatches(re)).HandleConnect(goproxy.AlwaysMitm)
+
 	proxy.OnResponse().DoFunc(
 		func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 
@@ -85,7 +111,7 @@ func Init() {
 
 			}()
 
-			fmt.Println("Before returning response " + string(body))
+			// fmt.Println("Before returning response " + string(body))
 			return resp
 		})
 
@@ -643,8 +669,9 @@ func handleResponse(resp *http.Response) {
 			log.Printf("handle tianxia  panic: %v\n", r)
 		}
 	}()
+	urlStr := resp.Request.URL.String()
 	// Check if the request URL matches the specific page
-	if resp.Request.URL.String() == "http://huyuegongxiang.2024.k9981.top/read.index.html" {
+	if strings.Contains(urlStr, "read.index.html") {
 	OuterLoop:
 		for name, values := range resp.Request.Header {
 			for _, value := range values {
@@ -720,24 +747,24 @@ func handleResponse(resp *http.Response) {
 	}
 }
 
-	// dir, err := os.Getwd()
-	// if err != nil {
-	// 	log.Fatalf("Failed to get working directory: %v", err)
-	// }
-	// fmt.Println("Current working directory:", dir)
+// dir, err := os.Getwd()
+// if err != nil {
+// 	log.Fatalf("Failed to get working directory: %v", err)
+// }
+// fmt.Println("Current working directory:", dir)
 
-	// // 拼接证书文件路径
-	// certFile := filepath.Join("", "certs", "ca.crt")
-	// certKeyFile := filepath.Join("", "certs", "ca.key.pem")
+// // 拼接证书文件路径
+// certFile := filepath.Join("", "certs", "ca.crt")
+// certKeyFile := filepath.Join("", "certs", "ca.key.pem")
 
-	// // 读取证书文件
-	// caCert, err := readFile(certFile)
-	// if err != nil {
-	// 	log.Fatalf(err.Error())
-	// }
+// // 读取证书文件
+// caCert, err := readFile(certFile)
+// if err != nil {
+// 	log.Fatalf(err.Error())
+// }
 
-	// // 读取证书密钥文件
-	// caKey, err := readFile(certKeyFile)
-	// if err != nil {
-	// 	log.Fatalf(err.Error())
-	// }
+// // 读取证书密钥文件
+// caKey, err := readFile(certKeyFile)
+// if err != nil {
+// 	log.Fatalf(err.Error())
+// }
