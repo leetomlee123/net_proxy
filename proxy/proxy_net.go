@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
@@ -15,30 +16,65 @@ import (
 	"strings"
 	"tidy/websocket"
 
-
 	"flag"
 
 	"github.com/PuerkitoBio/goquery"
 	"gopkg.in/elazarl/goproxy.v1"
 )
 
+func fetchTargetDomains(url string) ([]string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch target domains: %s", resp.Status)
+	}
+
+	var domains []string
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			domains = append(domains, line) // 按行切分，去除空白字符
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return domains, nil
+}
 
 func Init() {
+	targetDomainsURL := "https://alist.colors.nyc.mn/d/certs/domain.txt"
+	targetDomains, err := fetchTargetDomains(targetDomainsURL)
+	if err != nil {
+		log.Fatalf("Failed to fetch target domains: %v", err)
+	}
+	log.Printf("Loaded target domains: %v", targetDomains)
 
 	port := flag.String("p", "4568", "Port for the proxy server") // -p flag with default value "4568"
 	flag.Parse()                                                  // Parse the flags
 	setCA([]byte(caCert), []byte(caKey))
 
 	proxy := goproxy.NewProxyHttpServer()
-	// com.example.wx_reader
-	// Enable HTTPS interception with MITM
 
-	// myHandler := &MyReqHandler{}
-	// proxy.OnRequest().Do(myHandler)
+	// proxy.OnRequest().HandleConnect(goproxy.AlwaysMitm)
 
-	proxy.OnRequest().HandleConnect(goproxy.AlwaysMitm)
 
-	// targetPaths := []string{
+	proxy.OnRequest(goproxy.ReqConditionFunc(func(req *http.Request, ctx *goproxy.ProxyCtx) bool {
+		// 检查域名是否匹配
+		for _, domain := range targetDomains {
+			if strings.Contains(req.URL.Host, domain) {
+				return true
+			}
+		}
+		return false
+	})).HandleConnect(goproxy.AlwaysMitm)
 	// 	"yunonline/v1/gold",
 	// 	"ttz/yn/queryUserCode",
 	// 	"ttz/uaction/getArticleListkkk",
