@@ -113,3 +113,4 @@ func setCA(caCert, caKey []byte) error {
 	goproxy.RejectConnect = &goproxy.ConnectAction{Action: goproxy.ConnectReject, TLSConfig: goproxy.TLSConfigFromCA(&goproxyCa)}
 	return nil
 }
+

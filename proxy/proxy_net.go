@@ -1,8 +1,9 @@
 package proxy
 
 import (
-	"bufio"
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -15,97 +16,73 @@ import (
 	"regexp"
 	"strings"
 	"tidy/websocket"
-	"time"
 
-	"flag"
 
 	"github.com/PuerkitoBio/goquery"
-	"gopkg.in/elazarl/goproxy.v1"
+	"github.com/elazarl/goproxy"
 )
 
-func fetchTargetDomains(baseURL string) ([]string, error) {
-	// 构造带时间戳的 URL
-	parsedURL, err := url.Parse(baseURL)
-	if err != nil {
-		return nil, fmt.Errorf("invalid base URL: %v", err)
-	}
-	query := parsedURL.Query()
-	query.Set("g", fmt.Sprintf("%d", time.Now().Unix())) // 添加时间戳参数
-	parsedURL.RawQuery = query.Encode()
-
-	// 发起请求
-	resp, err := http.Get(parsedURL.String())
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch target domains: %s", resp.Status)
-	}
-
-	var domains []string
-	scanner := bufio.NewScanner(resp.Body)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line != "" {
-			domains = append(domains, line) // 按行切分，去除空白字符
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	return domains, nil
+var targetPaths = []string{
+	"yunonline/v1/gold",
+	"ttz/yn/queryUserCode",
+	"ttz/uaction/getArticleListkkk",
+	"v1/user/login",
+	"tuijian",
+	"yeipad/user",
 }
-func Init() {
-	targetDomainsURL := "https://alist.colors.nyc.mn/d/certs/domain.txt"
-	targetDomains, err := fetchTargetDomains(targetDomainsURL)
-	if err != nil {
-		log.Fatalf("Failed to fetch target domains: %v", err)
-	}
-	log.Printf("Loaded target domains: %v", targetDomains)
 
-	port := flag.String("p", "4568", "Port for the proxy server") // -p flag with default value "4568"
-	flag.Parse()                                                  // Parse the flags
-	setCA([]byte(caCert), []byte(caKey))
+func buildTargetPathRegex(targetPaths []string) *regexp.Regexp {
+	// Join target paths into a single regex pattern
+	// `(?:...)` is a non-capturing group, used for the OR condition
+	joinedPaths := "(" + `(?:` + regexp.QuoteMeta(targetPaths[0]) + `)`
+	for _, path := range targetPaths[1:] {
+		joinedPaths += `|(?:` + regexp.QuoteMeta(path) + `)`
+	}
+	joinedPaths += ")"
+	// Compile the regex pattern
+	re := regexp.MustCompile(joinedPaths)
+	return re
+}
+func parseCA(caCert, caKey []byte) (*tls.Certificate, error) {
+	parsedCert, err := tls.X509KeyPair(caCert, caKey)
+	if err != nil {
+		return nil, err
+	}
+	if parsedCert.Leaf, err = x509.ParseCertificate(parsedCert.Certificate[0]); err != nil {
+		return nil, err
+	}
+	return &parsedCert, nil
+}
+
+func Init() {
+	// port := flag.String("p", "4568", "Port for the proxy server") // -p flag with default value "4568"
+	// flag.Parse()                                                  // Parse the flags
+	// setCA([]byte(caCert), []byte(caKey))
+	cert, err := parseCA([]byte(caCert), []byte(caKey))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	customCaMitm := &goproxy.ConnectAction{Action: goproxy.ConnectMitm, TLSConfig: goproxy.TLSConfigFromCA(cert)}
+	// customCaMitmHttp := &goproxy.ConnectAction{Action: goproxy.ConnectHTTPMitm, TLSConfig: goproxy.TLSConfigFromCA(cert)}
+
+	var customAlwaysMitm goproxy.FuncHttpsHandler = func(host string, ctx *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
+
+		return customCaMitm, host
+
+	}
 
 	proxy := goproxy.NewProxyHttpServer()
-
-	// proxy.OnRequest().HandleConnect(goproxy.AlwaysMitm)
-
-
-	proxy.OnRequest(goproxy.ReqConditionFunc(func(req *http.Request, ctx *goproxy.ProxyCtx) bool {
-		// 检查域名是否匹配
-		for _, domain := range targetDomains {
-			if strings.Contains(req.URL.Host, domain) {
-				return true
-			}
-		}
-		return false
-	})).HandleConnect(goproxy.AlwaysMitm)
-	// 	"yunonline/v1/gold",
-	// 	"ttz/yn/queryUserCode",
-	// 	"ttz/uaction/getArticleListkkk",
-	// 	"v1/user/login",
-	// 	"tuijian",
-	// 	"yeipad/user",
-	// }
-	// var patterns []string
-	// for _, path := range targetPaths {
-	// 	patterns = append(patterns, regexp.QuoteMeta(path))
-	// }
-
-	// // 生成只要包含目标路径即可匹配的正则
-	// combinedPattern := "(" + strings.Join(patterns, "|") + ")"
-	// re := regexp.MustCompile(combinedPattern)
-
-	// proxy.OnRequest(goproxy.UrlMatches(re)).HandleConnect(goproxy.AlwaysMitm)
+	proxy.Verbose = true
+	proxy.CertStore = NewCertStorage()
+	proxy.OnRequest().HandleConnect(customAlwaysMitm)
 
 	proxy.OnResponse().DoFunc(
 		func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 
+			urlStr := resp.Request.RequestURI
+
+			log.Printf("%s:%s", resp.Request.Host, urlStr)
 			defer func() {
 				if r := recover(); r != nil {
 					fmt.Println("Recovered from panic:", r)
@@ -161,12 +138,9 @@ func Init() {
 			return resp
 		})
 
-	// Enable verbose logging for debugging
-	proxy.Verbose = true
-
 	// Start the proxy server on port 4568
-	fmt.Printf("Starting GoProxy on :%s\n", *port)
-	if err := http.ListenAndServe(":"+*port, proxy); err != nil {
+	fmt.Printf("Starting GoProxy on :%s\n", "4568")
+	if err := http.ListenAndServe(":4568", proxy); err != nil {
 		fmt.Println("Error starting proxy server:", err)
 		os.Exit(1)
 	}
