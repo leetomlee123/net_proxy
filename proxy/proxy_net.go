@@ -2,8 +2,6 @@ package proxy
 
 import (
 	"bytes"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -16,7 +14,6 @@ import (
 	"regexp"
 	"strings"
 	"tidy/websocket"
-
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/elazarl/goproxy"
@@ -43,39 +40,32 @@ func buildTargetPathRegex(targetPaths []string) *regexp.Regexp {
 	re := regexp.MustCompile(joinedPaths)
 	return re
 }
-func parseCA(caCert, caKey []byte) (*tls.Certificate, error) {
-	parsedCert, err := tls.X509KeyPair(caCert, caKey)
-	if err != nil {
-		return nil, err
-	}
-	if parsedCert.Leaf, err = x509.ParseCertificate(parsedCert.Certificate[0]); err != nil {
-		return nil, err
-	}
-	return &parsedCert, nil
-}
 
 func Init() {
-	// port := flag.String("p", "4568", "Port for the proxy server") // -p flag with default value "4568"
-	// flag.Parse()                                                  // Parse the flags
-	// setCA([]byte(caCert), []byte(caKey))
-	cert, err := parseCA([]byte(caCert), []byte(caKey))
+
+
+	//var customAlwaysMitm goproxy.FuncHttpsHandler = func(host string, ctx *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
+	//	if strings.Contains(host, "qq") {
+	//		return nil, host
+	//	}
+	//	return customCaMitm, host
+	//}
+
+	 err := setCA([]byte(caCert), []byte(caKey))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	customCaMitm := &goproxy.ConnectAction{Action: goproxy.ConnectMitm, TLSConfig: goproxy.TLSConfigFromCA(cert)}
+	// customCaMitm := &goproxy.ConnectAction{Action: goproxy.ConnectMitm, TLSConfig: goproxy.TLSConfigFromCA(cert)}
 	// customCaMitmHttp := &goproxy.ConnectAction{Action: goproxy.ConnectHTTPMitm, TLSConfig: goproxy.TLSConfigFromCA(cert)}
-
-	var customAlwaysMitm goproxy.FuncHttpsHandler = func(host string, ctx *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
-
-		return customCaMitm, host
-
-	}
 
 	proxy := goproxy.NewProxyHttpServer()
 	proxy.Verbose = true
+
 	proxy.CertStore = NewCertStorage()
-	proxy.OnRequest().HandleConnect(customAlwaysMitm)
+	//proxy.OnRequest().HandleConnect(customAlwaysMitm)
+	proxy.OnRequest().HandleConnect(goproxy.AlwaysMitm)
+
 
 	proxy.OnResponse().DoFunc(
 		func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
@@ -571,13 +561,13 @@ func handleKeleResponse(resp *http.Response, bodyBytes []byte) {
 			headers := resp.Request.Header
 
 			// Check if the Udtauth12 header exists
-			if values, ok := headers["Udtauth12"]; ok {
+			if values, ok := headers["udtauth13"]; ok {
 				for _, value := range values {
-					fmt.Printf("Udtauth12 header value: %s\n", value)
+					fmt.Printf("udtauth13 header value: %s\n", value)
 					token = value // Store the Udtauth12 value in token variable
 				}
 			} else {
-				fmt.Println("Udtauth12 header not found in the request")
+				fmt.Println("udtauth13 header not found in the request")
 			}
 		}
 		if username == "" {
