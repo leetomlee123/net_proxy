@@ -2,6 +2,8 @@ package proxy
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -40,39 +42,38 @@ func buildTargetPathRegex(targetPaths []string) *regexp.Regexp {
 	re := regexp.MustCompile(joinedPaths)
 	return re
 }
-
+func parseCA(caCert, caKey []byte) (*tls.Certificate, error) {
+	parsedCert, err := tls.X509KeyPair(caCert, caKey)
+	if err != nil {
+		return nil, err
+	}
+	if parsedCert.Leaf, err = x509.ParseCertificate(parsedCert.Certificate[0]); err != nil {
+		return nil, err
+	}
+	return &parsedCert, nil
+}
 func Init() {
 
-
-	//var customAlwaysMitm goproxy.FuncHttpsHandler = func(host string, ctx *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
-	//	if strings.Contains(host, "qq") {
-	//		return nil, host
-	//	}
-	//	return customCaMitm, host
-	//}
-
-	 err := setCA([]byte(caCert), []byte(caKey))
+	cert, err := parseCA([]byte(caCert), []byte(caKey))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// customCaMitm := &goproxy.ConnectAction{Action: goproxy.ConnectMitm, TLSConfig: goproxy.TLSConfigFromCA(cert)}
-	// customCaMitmHttp := &goproxy.ConnectAction{Action: goproxy.ConnectHTTPMitm, TLSConfig: goproxy.TLSConfigFromCA(cert)}
+	customCaMitm := &goproxy.ConnectAction{Action: goproxy.ConnectMitm, TLSConfig: goproxy.TLSConfigFromCA(cert)}
+	var customAlwaysMitm goproxy.FuncHttpsHandler = func(host string, ctx *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
+		return customCaMitm, host
+	}
 
 	proxy := goproxy.NewProxyHttpServer()
-	proxy.Verbose = true
+	// proxy.Verbose = true
 
+	proxy.Tr.TLSClientConfig.InsecureSkipVerify = true
 	proxy.CertStore = NewCertStorage()
-	//proxy.OnRequest().HandleConnect(customAlwaysMitm)
-	proxy.OnRequest().HandleConnect(goproxy.AlwaysMitm)
-
+	proxy.OnRequest().HandleConnect(customAlwaysMitm)
 
 	proxy.OnResponse().DoFunc(
 		func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 
-			urlStr := resp.Request.RequestURI
-
-			log.Printf("%s:%s", resp.Request.Host, urlStr)
 			defer func() {
 				if r := recover(); r != nil {
 					fmt.Println("Recovered from panic:", r)
